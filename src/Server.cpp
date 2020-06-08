@@ -46,7 +46,7 @@ void Server::acceptClientConnections()
     }
 
     std::cout << "Connection with socket " << _otherSocketFD << " established" << std::endl;
-    //receptionThread = std::thread(&Server::Polling, this);
+    receptionThread = std::thread(&Server::Polling, this);
 }
 
 void Server::sendMessage(std::string &s)

@@ -60,9 +60,11 @@ private:
     std::shared_ptr<MessageQueue> _toBeDisplayedMessages;
     // mutex to protect the dialog
     std::mutex _mtxDialogItems;
+    std::string toBeDisplayedNext;
 
     // events
     void OnEnter(wxCommandEvent &WXUNUSED(event));
+    void OnUpdate(wxDisplayChangedEvent &WXUNUSED(event));
 
 public:
     // constructor / desctructor
@@ -71,6 +73,8 @@ public:
     void passNodeObject(std::unique_ptr<Node> &node_ptr);
     // function to get shared message queue with node object
     void getMessageQueue();
+
+    friend void DisplayPollingThreadFunction(ChatBotFrame &frame);
 };
 
 // control panel for background image display

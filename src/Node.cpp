@@ -19,7 +19,9 @@ Node::Node() : _otherSocketFD(0)
 
 Node::~Node()
 {
-    close(_socketFD);
+    /* detach and destory thread */
+    receptionThread.detach();
+    receptionThread.~thread();
 }
 
 int Node::getSockedFD()

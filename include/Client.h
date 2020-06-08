@@ -12,7 +12,6 @@ class Client : public Node
         Client();
         virtual void sendMessage(std::string &s) override; // overriden virtual function used to send a single message
         virtual char*receiveMessage() override; //  overriden function used to receive a single message
-        ~Client();
         void connectToServer(std::string ip_address, uint16_t port);
         void terminateConnection() override;
         void Polling(); // function used to keep polling on received message and them in a queue

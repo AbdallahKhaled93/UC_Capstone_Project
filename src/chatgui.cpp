@@ -38,16 +38,16 @@ bool ChatBotApp::OnInit()
         return 1;
     }
 
-    std::string direction = std::string(wxApp::argv[1]);
+    std::string Ldirection = std::string(wxApp::argv[1]);
 
-    if((direction != "c") && (direction != "s"))
+    if((Ldirection != "c") && (Ldirection != "s"))
     {
         usage();
         return 1;
     }
 
     /* code if server */
-    if(direction == "s")
+    if(Ldirection == "s")
     {
         try
         {
@@ -61,7 +61,7 @@ bool ChatBotApp::OnInit()
         }
     }
 
-    if(direction == "c")
+    if(Ldirection == "c")
     {
         try
         {
@@ -77,7 +77,7 @@ bool ChatBotApp::OnInit()
 
 
     // create window with name and show it
-    ChatBotFrame *chatBotFrame = new ChatBotFrame(wxT("My Chat App"));
+    ChatBotFrame *chatBotFrame = new ChatBotFrame(wxT(direction));
     chatBotFrame->Show(true);
 
 
@@ -89,6 +89,18 @@ bool ChatBotApp::OnInit()
 }
 
 // wxWidgets FRAME
+std::thread DisplayPollingThread;
+void DisplayPollingThreadFunction(ChatBotFrame &frame)
+{
+    while(1)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        std::string s = frame._toBeDisplayedMessages->receive();
+        frame.toBeDisplayedNext = s;
+        frame.QueueEvent(new wxDisplayChangedEvent);
+    }
+}
+
 ChatBotFrame::ChatBotFrame(const wxString &title) : wxFrame(NULL, wxID_ANY, title, wxDefaultPosition, wxSize(width, height))
 {
     // create panel with background image
@@ -101,6 +113,7 @@ ChatBotFrame::ChatBotFrame(const wxString &title) : wxFrame(NULL, wxID_ANY, titl
     int idTextXtrl = 1;
     _userTextCtrl = new wxTextCtrl(ctrlPanel, idTextXtrl, "", wxDefaultPosition, wxSize(width, 50), wxTE_PROCESS_ENTER, wxDefaultValidator, wxTextCtrlNameStr);
     Connect(idTextXtrl, wxEVT_TEXT_ENTER, wxCommandEventHandler(ChatBotFrame::OnEnter));
+    this->Connect(wxEVT_DISPLAY_CHANGED, wxDisplayChangedEventHandler(ChatBotFrame::OnUpdate));
 
     // create vertical sizer for panel alignment and add panels
     wxBoxSizer *vertBoxSizer = new wxBoxSizer(wxVERTICAL);
@@ -129,15 +142,12 @@ void ChatBotFrame::OnEnter(wxCommandEvent &WXUNUSED(event))
     _userTextCtrl->Clear();
 }
 
-/*void ChatBotFrame::OnIdle(wxIdleEvent &WXUNUSED(event))
+void ChatBotFrame::OnUpdate(wxDisplayChangedEvent &WXUNUSED(event))
 {
-    std::cout << "here" << std::endl;
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    std::string s = this->_toBeDisplayedMessages->receive();
     this->_mtxDialogItems.lock();
-    this->_panelDialog->AddDialogItem(s, false);
+    this->_panelDialog->AddDialogItem(toBeDisplayedNext, false);
     this->_mtxDialogItems.unlock();
-}*/
+}
 
 void ChatBotFrame::passNodeObject(std::unique_ptr<Node> &node_ptr)
 {
@@ -147,6 +157,7 @@ void ChatBotFrame::passNodeObject(std::unique_ptr<Node> &node_ptr)
 void ChatBotFrame::getMessageQueue()
 {
     _toBeDisplayedMessages = _chatNode->getMessageQueue();
+    DisplayPollingThread = std::thread(DisplayPollingThreadFunction, std::ref(*this));
 }
 
 

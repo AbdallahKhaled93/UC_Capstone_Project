@@ -27,7 +27,7 @@ void Client::connectToServer(std::string ip_address, uint16_t port)
     }
 
     std::cout << "Connection with socket " << _otherSocketFD << " established" << std::endl;
-    //receptionThread = std::thread(&Client::Polling, this);
+    receptionThread = std::thread(&Client::Polling, this);
 }
 
 
@@ -69,10 +69,5 @@ void Client::Polling()
 
 void Client::terminateConnection()
 {
-
 }
 
-Client::~Client()
-{
-
-}
