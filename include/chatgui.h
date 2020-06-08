@@ -2,9 +2,12 @@
 #define CHATGUI_H_
 
 #include <memory>
+#include <mutex>
+#include <future>
 #include <wx/wx.h>
 
 #include "Node.h"
+#include "MessageQueue.h"
 
 // middle part of the window containing the dialog between user and chatbot
 class ChatBotPanelDialog : public wxScrolledWindow
@@ -39,7 +42,6 @@ class ChatBotPanelDialogItem : public wxPanel
 {
 private:
     // control elements
-    wxStaticBitmap *_chatBotImg;
     wxStaticText *_chatBotTxt;
 
 public:
@@ -54,6 +56,10 @@ private:
     // control elements
     ChatBotPanelDialog *_panelDialog;
     wxTextCtrl *_userTextCtrl;
+    std::unique_ptr<Node> _chatNode;
+    std::shared_ptr<MessageQueue> _toBeDisplayedMessages;
+    // mutex to protect the dialog
+    std::mutex _mtxDialogItems;
 
     // events
     void OnEnter(wxCommandEvent &WXUNUSED(event));
@@ -61,6 +67,10 @@ private:
 public:
     // constructor / desctructor
     ChatBotFrame(const wxString &title);
+    // get node pointer
+    void passNodeObject(std::unique_ptr<Node> &node_ptr);
+    // function to get shared message queue with node object
+    void getMessageQueue();
 };
 
 // control panel for background image display
@@ -88,7 +98,8 @@ public:
     // events
     virtual bool OnInit();
 
-    Node* _chatNode;
+private:
+    std::unique_ptr<Node> _chatNode;
 };
 
 #endif /* CHATGUI_H_ */

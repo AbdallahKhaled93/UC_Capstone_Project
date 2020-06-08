@@ -16,21 +16,12 @@ class Client;
 class Server : public Node
 {
     public:
-        Server(std::string ip_address, uint16_t port, int max_client_count);
+        Server(std::string ip_address, uint16_t port);
+        virtual void sendMessage(std::string &s) override; // overriden virtual function used to send a single message
+        virtual char*receiveMessage() override; //  overriden function used to receive a single message
         void acceptClientConnections();
-        void sendMessage(std::string s) override;
-        std::string receiveMessage() override;
         void terminateConnection() override;
-
-    private:
-        int _clientsCount;
-        int _maxClientsCount;
-        std::vector<Client> _clients;
-        std::vector<std::thread> _clientThreads;
-        std::mutex _mtxClientsVector;
-
-
-        void handleClient();
+        void Polling(); // function used to keep polling on received message and them in a queue
 };
 
 

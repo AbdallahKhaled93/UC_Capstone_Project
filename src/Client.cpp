@@ -1,37 +1,14 @@
 #include <arpa/inet.h>
+#include <unistd.h>
 #include <stdexcept>
+#include <iostream>
 
 #include "Client.h"
 
 
+
 Client::Client()
 {
-    _address = std::make_unique<sockaddr_in>();
-}
-
-Client::Client(std::string ip_address, uint16_t port)
-{
-    _address = std::make_unique<sockaddr_in>();
-}
-
-Client::Client(Client &&client)
-{
-    _address = std::move(client._address);
-    _socketFD = client._socketFD;
-
-    client._socketFD = 0;
-}
-
-
-Client& Client::operator=(Client &&source)
-{
-    if (this == &source)
-        return *this;
-
-    _address = std::move(source._address);
-    _socketFD = source._socketFD;
-
-    source._socketFD = 0;
 }
 
 void Client::connectToServer(std::string ip_address, uint16_t port)
@@ -48,27 +25,51 @@ void Client::connectToServer(std::string ip_address, uint16_t port)
     {
         throw std::runtime_error("error during connection");
     }
+
+    std::cout << "Connection with socket " << _otherSocketFD << " established" << std::endl;
+    //receptionThread = std::thread(&Client::Polling, this);
 }
 
-void Client::sendMessage(std::string s)
+
+void Client::sendMessage(std::string &s)
 {
+    /* check if there is a connection */
+    send(_socketFD, s.c_str(), s.size(), 0);
 
 }
 
-std::string Client::receiveMessage()
+char* Client::receiveMessage()
 {
-    return "";
+    if(read(_socketFD, _sendBuffer, 1024))
+    {
+        return _sendBuffer;
+    }
+    else
+    {
+        _sendBuffer[0] = '\0';
+        return _sendBuffer;
+    }
+}
+
+void Client::Polling()
+{
+    while(true)
+    {
+        /* liberate cpu */
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        _sendString = std::string(receiveMessage());
+        if(_sendString != "")
+        {
+            std::cout << _sendString << std::endl;
+            _receivedMsgs->send(std::move(_sendString));
+        }
+
+    }
 }
 
 void Client::terminateConnection()
 {
 
-}
-
-
-std::unique_ptr<sockaddr_in>& Client::getAddressStruct()
-{
-    return _address;
 }
 
 Client::~Client()

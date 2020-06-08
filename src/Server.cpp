@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <unistd.h>
 #include <stdexcept>
 #include <iostream>
 #include <string>
@@ -8,27 +9,24 @@
 #include "Client.h"
 
 
-Server::Server(std::string ip_address, uint16_t port, int max_client_count)
+Server::Server(std::string ip_address, uint16_t port)
 {
-    _maxClientsCount = max_client_count;
-    _clientsCount = 0;
 
     /* bind socket to a port */
-    _address = std::make_unique<sockaddr_in>();
-    (_address.get())->sin_family = AF_INET;
-    (_address.get())->sin_port = htons(port);
-    if(inet_pton(AF_INET, ip_address.c_str(), &((_address.get())->sin_addr)) <= 0)
+    _address.sin_family = AF_INET;
+    _address.sin_port = htons(port);
+    if(inet_pton(AF_INET, ip_address.c_str(), &(_address.sin_addr)) <= 0)
     {
         throw std::runtime_error("Invalid server address");
     }
 
     std::cout << "Binding server socket to port " << port << std::endl;
-    if(bind(_socketFD, (struct sockaddr*)_address.get(), sizeof(*(_address.get()))) < 0)
+    if(bind(_socketFD, (struct sockaddr*)&_address, sizeof(_address)) < 0)
     {
         throw std::runtime_error("Error during address binding");
     }
 
-    if(listen(_socketFD, max_client_count) < 0)
+    if(listen(_socketFD, 1) < 0)
     {
         throw std::runtime_error("Error during listening for connection");
     }
@@ -38,45 +36,64 @@ Server::Server(std::string ip_address, uint16_t port, int max_client_count)
 
 void Server::acceptClientConnections()
 {
-    /*while (_clientsCount < _maxClientsCount)
-    {
-        _clientsCount++;
-        _clientThreads.emplace_back(std::thread(&Server::handleClient, this));
-    }*/
-    handleClient();
-    
-}
+    int addrlen = sizeof(_address);
 
+    _otherSocketFD = accept(this->_socketFD, (struct sockaddr*)&_address, (socklen_t*)&addrlen);
 
-void Server::handleClient()
-{
-    Client client;
-    socklen_t clientAddressLength = sizeof(*((client.getAddressStruct()).get()));
-    client.setSockedFD(
-        accept(this->_socketFD, (struct sockaddr*)(client.getAddressStruct().get()), &clientAddressLength)
-        );
-    if (client.getSockedFD() == -1)
+    if (_otherSocketFD == -1)
     {
         throw std::runtime_error("Could not accept client connection");
     }
-    
-    std::unique_lock<std::mutex> uLock;
 
-    _clients.push_back(std::move(client));
-    std::cout << "Connection with client " << _clients.back().getSockedFD() << " established" << std::endl;
-
-
+    std::cout << "Connection with socket " << _otherSocketFD << " established" << std::endl;
+    //receptionThread = std::thread(&Server::Polling, this);
 }
 
-
-void Server::sendMessage(std::string s)
+void Server::sendMessage(std::string &s)
 {
-
+    /* check if there is a connection */
+    if(_otherSocketFD > 0)
+    {
+        send(_socketFD, s.c_str(), s.size(), 0);
+    }
 }
 
-std::string Server::receiveMessage()
+char* Server::receiveMessage()
 {
-    return "";
+    /* check if there is a connection */
+    if(_otherSocketFD > 0)
+    {
+        if(read(_otherSocketFD, _sendBuffer, 1024))
+        {
+            return _sendBuffer;
+        }
+        else
+        {
+            _sendBuffer[0] = '\0';
+            return _sendBuffer;
+        }
+    }
+    else
+    {
+        _sendBuffer[0] = '\0';
+        return _sendBuffer;
+    }
+}
+
+void Server::Polling()
+{
+    while(true)
+    {
+        /* liberate cpu */
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        _sendString = std::string(receiveMessage());
+        if(_sendString != "")
+        {
+            std::cout << _sendString << std::endl;
+            _receivedMsgs->send(std::move(_sendString));
+        }
+
+    }
 }
 
 void Server::terminateConnection()

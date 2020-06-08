@@ -10,19 +10,13 @@ class Client : public Node
     friend class Server;
     public:
         Client();
-        Client(std::string ip_address, uint16_t port);
-        Client(Client &client) = delete; // prevent making a copy of the client due to the unique ptr
-        Client(Client &&client); // move constructor
-        Client &operator=(Client &client) = delete; // prevent making a copy of the client due to the unique ptr
-        Client &operator=(Client &&client);
+        virtual void sendMessage(std::string &s) override; // overriden virtual function used to send a single message
+        virtual char*receiveMessage() override; //  overriden function used to receive a single message
         ~Client();
         void connectToServer(std::string ip_address, uint16_t port);
-        void sendMessage(std::string s) override;
-        std::string receiveMessage()  override;
         void terminateConnection() override;
+        void Polling(); // function used to keep polling on received message and them in a queue
 
-    private:
-        std::unique_ptr<sockaddr_in>& getAddressStruct();
 };
 
 

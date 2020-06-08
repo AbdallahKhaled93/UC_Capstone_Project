@@ -2,10 +2,13 @@
 #include <wx/colour.h>
 #include <wx/image.h>
 #include <string>
-#include <memory>
+#include <thread>
+#include <mutex>
+#include <chrono>
 #include "chatgui.h"
 #include "Server.h"
 #include "Client.h"
+#include "MessageQueue.h"
 
 // size of chatbot window
 const int width = 414;
@@ -29,10 +32,6 @@ void usage()
 
 bool ChatBotApp::OnInit()
 {
-    // create window with name and show it
-    ChatBotFrame *chatBotFrame = new ChatBotFrame(wxT("My Chat App"));
-    chatBotFrame->Show(true);
-
     if(wxApp::argc != 2)
     {
         usage();
@@ -52,8 +51,9 @@ bool ChatBotApp::OnInit()
     {
         try
         {
-            _chatNode = new Server("127.0.0.1",PORT,1);
-            ((Server*)_chatNode)->acceptClientConnections();
+            Node* nodeRawPtr = new Server("127.0.0.1",PORT);
+            _chatNode = std::unique_ptr<Node>(nodeRawPtr);
+            ((Server*)(_chatNode.get()))->acceptClientConnections();
         }
         catch(const std::exception& e)
         {
@@ -65,8 +65,9 @@ bool ChatBotApp::OnInit()
     {
         try
         {
-            _chatNode = new Client("127.0.0.1",0);
-            ((Client*)_chatNode)->connectToServer("127.0.0.1",PORT);
+            Node* nodeRawPtr = new Client();
+            _chatNode = std::unique_ptr<Node>(nodeRawPtr);
+            ((Client*)(_chatNode.get()))->connectToServer("127.0.0.1",PORT);
         }
         catch(const std::exception& e)
         {
@@ -74,6 +75,15 @@ bool ChatBotApp::OnInit()
         }
     }
 
+
+    // create window with name and show it
+    ChatBotFrame *chatBotFrame = new ChatBotFrame(wxT("My Chat App"));
+    chatBotFrame->Show(true);
+
+
+    /* Start  reception*/
+    chatBotFrame->passNodeObject(_chatNode);
+    chatBotFrame->getMessageQueue();
 
     return true;
 }
@@ -106,16 +116,39 @@ ChatBotFrame::ChatBotFrame(const wxString &title) : wxFrame(NULL, wxID_ANY, titl
 void ChatBotFrame::OnEnter(wxCommandEvent &WXUNUSED(event))
 {
     // retrieve text from text control
-    wxString userText = _userTextCtrl->GetLineText(0);
+    std::string userText = std::string(_userTextCtrl->GetLineText(0));
 
+    // send message
+    _chatNode->sendMessage(userText);
+
+    std::lock_guard<std::mutex> gLock(_mtxDialogItems);
     // add new user text to dialog
     _panelDialog->AddDialogItem(userText, true);
 
     // delete text in text control
     _userTextCtrl->Clear();
-
-    // TODO : get text from user and send it to the other node
 }
+
+/*void ChatBotFrame::OnIdle(wxIdleEvent &WXUNUSED(event))
+{
+    std::cout << "here" << std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    std::string s = this->_toBeDisplayedMessages->receive();
+    this->_mtxDialogItems.lock();
+    this->_panelDialog->AddDialogItem(s, false);
+    this->_mtxDialogItems.unlock();
+}*/
+
+void ChatBotFrame::passNodeObject(std::unique_ptr<Node> &node_ptr)
+{
+    _chatNode = std::move(node_ptr);
+}
+
+void ChatBotFrame::getMessageQueue()
+{
+    _toBeDisplayedMessages = _chatNode->getMessageQueue();
+}
+
 
 BEGIN_EVENT_TABLE(ChatBotFrameImagePanel, wxPanel)
 EVT_PAINT(ChatBotFrameImagePanel::paintEvent) // catch paint events
@@ -233,18 +266,14 @@ void ChatBotPanelDialog::render(wxDC &dc)
 ChatBotPanelDialogItem::ChatBotPanelDialogItem(wxPanel *parent, wxString text, bool isFromUser)
     : wxPanel(parent, -1, wxPoint(-1, -1), wxSize(-1, -1), wxBORDER_NONE)
 {
-    // retrieve image from chatbot
-    wxBitmap *bitmap = isFromUser == true ? nullptr : nullptr;
 
-    // create image and text
-    _chatBotImg = new wxStaticBitmap(this, wxID_ANY, (isFromUser ? wxBitmap(imgBasePath + "user.png", wxBITMAP_TYPE_PNG) : *bitmap), wxPoint(-1, -1), wxSize(-1, -1));
+    // create text
     _chatBotTxt = new wxStaticText(this, wxID_ANY, text, wxPoint(-1, -1), wxSize(150, -1), wxALIGN_CENTRE | wxBORDER_NONE);
     _chatBotTxt->SetForegroundColour(isFromUser == true ? wxColor(*wxBLACK) : wxColor(*wxWHITE));
 
     // create sizer and add elements
     wxBoxSizer *horzBoxSizer = new wxBoxSizer(wxHORIZONTAL);
     horzBoxSizer->Add(_chatBotTxt, 8, wxEXPAND | wxALL, 1);
-    horzBoxSizer->Add(_chatBotImg, 2, wxEXPAND | wxALL, 1);
     this->SetSizer(horzBoxSizer);
 
     // wrap text after 150 pixels

@@ -56,7 +56,8 @@
         "cstring": "cpp",
         "ratio": "cpp",
         "mutex": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "future": "cpp"
     },
     "C_Cpp.errorSquiggles": "Disabled"
 }
