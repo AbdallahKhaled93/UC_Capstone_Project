@@ -1,6 +1,6 @@
 # UC_Capstone_Project
 Udacity final project.
-Multithreaded simple chat app using UNIX sockets
+Multithreaded simple chat app using UNIX sockets based on wxWidgets
 
 ## Dependencies for Running Locally
 * cmake >= 3.11
@@ -25,3 +25,29 @@ Multithreaded simple chat app using UNIX sockets
 3. Compile: `cmake .. && make`
 4. Run it as a server first : `./ChatBot s`.
 5. Run it as a client : `./ChatBot c`.
+
+
+
+
+## Rubric Points
+### Loops, Functions, I/O
+-The project demonstrates an understanding of C++ functions and control structures.
+-The project reads data from a file and process the data, or the program writes data to a file. This is acheived by writing to socket file descriptors
+-The project accepts user input and processes the input. This is acheived by waiting for the user to enter the message to be sent to other node.
+
+### Object Oriented Programming
+-The project uses Object Oriented Programming techniques.
+-Classes use appropriate access specifiers for class members.
+-Classes abstract implementation details from their interfaces.
+-Classes encapsulate behavior.
+-Classes follow an appropriate inheritance hierarchy.
+-Derived class functions override virtual base class functions.
+
+### Memory Management
+-The project uses destructors appropriately. Please refer to chatgui.cpp
+-The project follows the Rule of 5. Please refer to class Client.
+-The project uses move semantics to move data, instead of copying it, where possible.
+-The project uses smart pointers instead of raw pointers.
+
+### Concurrency
+-The project uses multithreading.
