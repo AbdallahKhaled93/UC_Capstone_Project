@@ -60,11 +60,14 @@ void Server::sendMessage(std::string &s)
 
 char* Server::receiveMessage()
 {
+    int byteCount;
     /* check if there is a connection */
     if(_otherSocketFD > 0)
     {
-        if(read(_otherSocketFD, _sendBuffer, 1024))
+        byteCount = read(_otherSocketFD, _sendBuffer, 1024);
+        if(byteCount)
         {
+            _sendBuffer[byteCount] = '\0';
             return _sendBuffer;
         }
         else

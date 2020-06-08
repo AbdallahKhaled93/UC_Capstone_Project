@@ -40,8 +40,10 @@ void Client::sendMessage(std::string &s)
 
 char* Client::receiveMessage()
 {
-    if(read(_socketFD, _sendBuffer, 1024))
+    int byteCount = read(_socketFD, _sendBuffer, 1024);
+    if(byteCount)
     {
+        _sendBuffer[byteCount] = '\0';
         return _sendBuffer;
     }
     else
