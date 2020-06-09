@@ -29,8 +29,6 @@ Multithreaded simple chat app using UNIX sockets based on wxWidgets. Two instanc
 5. Run it as a client : `./ChatBot c`.
 
 
-
-
 ## Rubric Points
 ### Loops, Functions, I/O
 -The project demonstrates an understanding of C++ functions and control structures.
@@ -55,3 +53,22 @@ the ChatBotFrame constructor takes a unique pointer by reference
 ### Concurrency
 -The project uses multithreading. It uses wx threads.
 -A mutex or lock is used in the project.
+
+
+## Code Structure
+### Class Diagram
+<img src="images/ClassDiagram.png"/>
+ In the above class diagram, Node is an abstract class and it is used a unique pointer in the chatgui file to sned and receive messages. It was made that to have one usable object instead of creating an object for server and object for client and one of them is not used.
+ The rest of the code is in the chatgui files which are similar to the ones used in the membot project.
+### Threads
+There two threads in the project :
+  1- The main thread which renders the gui and waits for the user input and sends it to the socket
+  2- A detached wxThread which is used instead of the normal threads to be compliant with wx widget dev guids. This thread is the receiver, it reads from the sockets then notifies the main thread that there is data. It is similar to the concept of the promise-future but here it is reusable and "events" are used as a mean of communication along with a shared string.
+  
+  The string shared between the threads is protected by a mutex and a lock guard is used in the reading function (the main thread)
+  
+  
+## Output
+
+   As seen the in the first screenshot, this is how the program should look like. Some messages are printed on the console
+to show the connection status. Also there is a message that says the thread is not terminated by the app, it is normal because this is a detached thread and the resources used by this thread are protected (i.e. check if ptr is destoryed)
