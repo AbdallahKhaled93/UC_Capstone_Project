@@ -1,6 +1,8 @@
 # UC_Capstone_Project
-Udacity final project.
-Multithreaded simple chat app using UNIX sockets based on wxWidgets
+Udacity final project Option 1 (sipmle application for network protocol).
+Multithreaded simple chat app using UNIX sockets based on wxWidgets. Two instances of the program are created and messages are exchanged between the two instances in a fullcast communication channel
+
+<img src="images/demo.png"/>
 
 ## Dependencies for Running Locally
 * cmake >= 3.11
@@ -41,13 +43,15 @@ Multithreaded simple chat app using UNIX sockets based on wxWidgets
 -Classes abstract implementation details from their interfaces.
 -Classes encapsulate behavior.
 -Classes follow an appropriate inheritance hierarchy.
--Derived class functions override virtual base class functions.
+-Derived class functions override virtual base class functions. Please refer to send and receive message in both classes Server and Client
 
 ### Memory Management
--The project uses destructors appropriately. Please refer to chatgui.cpp
--The project follows the Rule of 5. Please refer to class Client.
+-The project makes use of references in function declarations. the receive message function (return by reference) and
+the ChatBotFrame constructor takes a unique pointer by reference
+-The project uses destructors appropriately. Please refer to chatgui.cpp ~ReceptionThread()
 -The project uses move semantics to move data, instead of copying it, where possible.
--The project uses smart pointers instead of raw pointers.
+-The project uses smart pointers instead of raw pointers. Please refer to _chatNode unique pointer
 
 ### Concurrency
--The project uses multithreading.
+-The project uses multithreading. It uses wx threads.
+-A mutex or lock is used in the project.
