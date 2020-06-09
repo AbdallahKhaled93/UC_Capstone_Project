@@ -1,6 +1,8 @@
 # UC_Capstone_Project
 Udacity final project Option 1 (sipmle application for network protocol).
-Multithreaded simple chat app using UNIX sockets based on wxWidgets.
+Multithreaded simple chat app using UNIX sockets based on wxWidgets. Two instances of the program are created and messages are exchanged between the two instances in a fullcast communication channel
+
+<img src="images/demo.png"/>
 
 ## Dependencies for Running Locally
 * cmake >= 3.11
