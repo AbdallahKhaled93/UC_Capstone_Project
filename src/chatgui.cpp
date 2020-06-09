@@ -8,7 +8,6 @@
 #include "chatgui.h"
 #include "Server.h"
 #include "Client.h"
-#include "MessageQueue.h"
 
 // size of chatbot window
 const int width = 414;
@@ -58,6 +57,7 @@ bool ChatBotApp::OnInit()
         catch(const std::exception& e)
         {
             std::cerr << e.what() << '\n';
+            exit(1);
         }
     }
 
@@ -72,36 +72,22 @@ bool ChatBotApp::OnInit()
         catch(const std::exception& e)
         {
             std::cerr << e.what() << '\n';
+            exit(1);
         }
     }
 
-
     // create window with name and show it
-    ChatBotFrame *chatBotFrame = new ChatBotFrame(wxT(direction));
+    ChatBotFrame *chatBotFrame = new ChatBotFrame(wxT(direction), _chatNode);
     chatBotFrame->Show(true);
-
-
-    /* Start  reception*/
-    chatBotFrame->passNodeObject(_chatNode);
-    chatBotFrame->getMessageQueue();
 
     return true;
 }
 
 // wxWidgets FRAME
-std::thread DisplayPollingThread;
-void DisplayPollingThreadFunction(ChatBotFrame &frame)
-{
-    while(1)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        std::string s = frame._toBeDisplayedMessages->receive();
-        frame.toBeDisplayedNext = s;
-        frame.QueueEvent(new wxDisplayChangedEvent);
-    }
-}
-
-ChatBotFrame::ChatBotFrame(const wxString &title) : wxFrame(NULL, wxID_ANY, title, wxDefaultPosition, wxSize(width, height))
+// This event will be used to notify the main thread to add a dialogue item
+wxDECLARE_EVENT(wxEVT_COMMAND_DISPLAY_MESSAGE, wxThreadEvent);
+wxDEFINE_EVENT(wxEVT_COMMAND_DISPLAY_MESSAGE, wxThreadEvent);
+ChatBotFrame::ChatBotFrame(const wxString &title, std::unique_ptr<Node> &node_ptr) : wxFrame(NULL, wxID_ANY, title, wxDefaultPosition, wxSize(width, height))
 {
     // create panel with background image
     ChatBotFrameImagePanel *ctrlPanel = new ChatBotFrameImagePanel(this);
@@ -109,11 +95,15 @@ ChatBotFrame::ChatBotFrame(const wxString &title) : wxFrame(NULL, wxID_ANY, titl
     // create controls and assign them to control panel
     _panelDialog = new ChatBotPanelDialog(ctrlPanel, wxID_ANY);
 
+    // get chat node object from wx app
+    _chatNode = std::move(node_ptr);
+
     // create text control for user input
     int idTextXtrl = 1;
     _userTextCtrl = new wxTextCtrl(ctrlPanel, idTextXtrl, "", wxDefaultPosition, wxSize(width, 50), wxTE_PROCESS_ENTER, wxDefaultValidator, wxTextCtrlNameStr);
     Connect(idTextXtrl, wxEVT_TEXT_ENTER, wxCommandEventHandler(ChatBotFrame::OnEnter));
-    this->Connect(wxEVT_DISPLAY_CHANGED, wxDisplayChangedEventHandler(ChatBotFrame::OnUpdate));
+    this->Connect(wxEVT_CLOSE_WINDOW, wxCloseEventHandler(ChatBotFrame::OnClose));
+    this->Connect(wxEVT_COMMAND_DISPLAY_MESSAGE, wxThreadEventHandler(ChatBotFrame::OnDisplayCommand));
 
     // create vertical sizer for panel alignment and add panels
     wxBoxSizer *vertBoxSizer = new wxBoxSizer(wxVERTICAL);
@@ -124,6 +114,20 @@ ChatBotFrame::ChatBotFrame(const wxString &title) : wxFrame(NULL, wxID_ANY, titl
 
     // position window in screen center
     this->Centre();
+
+    // Start reception thread
+    _receptionThread = new ReceptionThread();
+    _receptionThread->setFrame(this);
+    if ( _receptionThread->Run() != wxTHREAD_NO_ERROR )
+    {
+        std::cout << "Can't create the thread!" << std::endl;
+        delete _receptionThread;
+        _receptionThread = NULL;
+    }
+}
+
+ChatBotFrame::~ChatBotFrame()
+{
 }
 
 void ChatBotFrame::OnEnter(wxCommandEvent &WXUNUSED(event))
@@ -134,7 +138,6 @@ void ChatBotFrame::OnEnter(wxCommandEvent &WXUNUSED(event))
     // send message
     _chatNode->sendMessage(userText);
 
-    std::lock_guard<std::mutex> gLock(_mtxDialogItems);
     // add new user text to dialog
     _panelDialog->AddDialogItem(userText, true);
 
@@ -142,24 +145,16 @@ void ChatBotFrame::OnEnter(wxCommandEvent &WXUNUSED(event))
     _userTextCtrl->Clear();
 }
 
-void ChatBotFrame::OnUpdate(wxDisplayChangedEvent &WXUNUSED(event))
+void ChatBotFrame::OnDisplayCommand(wxThreadEvent &WXUNUSED(event))
 {
-    this->_mtxDialogItems.lock();
-    this->_panelDialog->AddDialogItem(toBeDisplayedNext, false);
-    this->_mtxDialogItems.unlock();
+    this->_panelDialog->AddDialogItem(this->receivedMessage, false);
 }
 
-void ChatBotFrame::passNodeObject(std::unique_ptr<Node> &node_ptr)
+void ChatBotFrame::OnClose(wxCloseEvent &WXUNUSED(event))
 {
-    _chatNode = std::move(node_ptr);
+    std::cout << this->_receptionThread->Delete() << std::endl;
+    Destroy();
 }
-
-void ChatBotFrame::getMessageQueue()
-{
-    _toBeDisplayedMessages = _chatNode->getMessageQueue();
-    DisplayPollingThread = std::thread(DisplayPollingThreadFunction, std::ref(*this));
-}
-
 
 BEGIN_EVENT_TABLE(ChatBotFrameImagePanel, wxPanel)
 EVT_PAINT(ChatBotFrameImagePanel::paintEvent) // catch paint events
@@ -184,7 +179,7 @@ void ChatBotFrameImagePanel::paintNow()
 void ChatBotFrameImagePanel::render(wxDC &dc)
 {
     // load backgroud image from file
-    wxString imgFile = imgBasePath + "sf_bridge.jpg";
+    wxString imgFile = imgBasePath + "background.jpg";
     wxImage image;
     image.LoadFile(imgFile);
 
@@ -214,14 +209,6 @@ ChatBotPanelDialog::ChatBotPanelDialog(wxWindow *parent, wxWindowID id)
 
 ChatBotPanelDialog::~ChatBotPanelDialog()
 {
-    //// STUDENT CODE
-    ////
-
-    /* Remove delete chat logic as it is a unique ptr and will be deleted automatically when the dialog goes out of scope */
-    //delete _chatLogic;
-
-    ////
-    //// EOF STUDENT CODE
 }
 
 void ChatBotPanelDialog::AddDialogItem(wxString text, bool isFromUser)
@@ -243,13 +230,6 @@ void ChatBotPanelDialog::AddDialogItem(wxString text, bool isFromUser)
     this->DoScroll(0, sy);
 }
 
-void ChatBotPanelDialog::PrintChatbotResponse(std::string response)
-{
-    // convert string into wxString and add dialog element
-    wxString botText(response.c_str(), wxConvUTF8);
-    AddDialogItem(botText, false);
-}
-
 void ChatBotPanelDialog::paintEvent(wxPaintEvent &evt)
 {
     wxPaintDC dc(this);
@@ -265,7 +245,7 @@ void ChatBotPanelDialog::paintNow()
 void ChatBotPanelDialog::render(wxDC &dc)
 {
     wxImage image;
-    image.LoadFile(imgBasePath + "sf_bridge_inner.jpg");
+    image.LoadFile(imgBasePath + "background.jpg");
 
     wxSize sz = this->GetSize();
     wxImage imgSmall = image.Rescale(sz.GetWidth(), sz.GetHeight(), wxIMAGE_QUALITY_HIGH);
@@ -292,4 +272,43 @@ ChatBotPanelDialogItem::ChatBotPanelDialogItem(wxPanel *parent, wxString text, b
 
     // set background color
     this->SetBackgroundColour((isFromUser == true ? wxT("YELLOW") : wxT("BLUE")));
+}
+
+
+// Reception thread functions definition
+wxThread::ExitCode ReceptionThread::Entry()
+{
+    while (!TestDestroy())
+    {
+        /* use dynamic cast to call the appropriate polling fuction */
+        Server*s = dynamic_cast<Server*>(this->frame->_chatNode.get());
+
+        /* this is client node */
+        if(s == 0)
+        {
+            Client*c = dynamic_cast<Client*>(this->frame->_chatNode.get());
+            frame->receivedMessage = c->receiveMessage();
+        }
+        // server node
+        else
+        {
+            frame->receivedMessage = s->receiveMessage();
+        }
+
+        if(frame->receivedMessage != "")
+        {
+            wxQueueEvent(frame, new wxThreadEvent(wxEVT_COMMAND_DISPLAY_MESSAGE));
+        }
+    }
+    return (wxThread::ExitCode)0;
+}
+
+void ReceptionThread::setFrame(ChatBotFrame *frame)
+{
+    this->frame = frame;
+}
+
+ReceptionThread::~ReceptionThread()
+{
+    this->frame = nullptr;
 }

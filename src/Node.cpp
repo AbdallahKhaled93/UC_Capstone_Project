@@ -7,9 +7,9 @@
 
 #include "Node.h"
 
-Node::Node() : _otherSocketFD(0)
+Node::Node()
 {
-    _socketFD = socket(AF_INET, SOCK_STREAM, 0);
+    _socketFD = socket(PF_INET, SOCK_STREAM, 0);
     /* throw exception if socket creation failed */
     if(-1 == _socketFD)
     {
@@ -19,9 +19,7 @@ Node::Node() : _otherSocketFD(0)
 
 Node::~Node()
 {
-    /* detach and destory thread */
-    receptionThread.detach();
-    receptionThread.~thread();
+    close(_socketFD);
 }
 
 int Node::getSockedFD()
@@ -32,9 +30,4 @@ int Node::getSockedFD()
 void Node::setSockedFD(int socket_fd)
 {
     _socketFD = socket_fd;
-}
-
-std::shared_ptr<MessageQueue> Node::getMessageQueue()
-{
-    return _receivedMsgs;
 }

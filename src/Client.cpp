@@ -26,8 +26,7 @@ void Client::connectToServer(std::string ip_address, uint16_t port)
         throw std::runtime_error("error during connection");
     }
 
-    std::cout << "Connection with socket " << _otherSocketFD << " established" << std::endl;
-    receptionThread = std::thread(&Client::Polling, this);
+    std::cout << "Connection with server established" << std::endl;
 }
 
 
@@ -38,38 +37,20 @@ void Client::sendMessage(std::string &s)
 
 }
 
-char* Client::receiveMessage()
+std::string &Client::receiveMessage()
 {
-    int byteCount = read(_socketFD, _sendBuffer, 1024);
+    int byteCount = recv(_socketFD, _sendBuffer, 1024, 0);
     if(byteCount)
     {
         _sendBuffer[byteCount] = '\0';
-        return _sendBuffer;
     }
     else
     {
         _sendBuffer[0] = '\0';
-        return _sendBuffer;
     }
-}
 
-void Client::Polling()
-{
-    while(true)
-    {
-        /* liberate cpu */
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        _sendString = std::string(receiveMessage());
-        if(_sendString != "")
-        {
-            std::cout << _sendString << std::endl;
-            _receivedMsgs->send(std::move(_sendString));
-        }
 
-    }
-}
-
-void Client::terminateConnection()
-{
+    _sendString = std::string(_sendBuffer);
+    return _sendString;
 }
 

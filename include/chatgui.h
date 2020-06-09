@@ -7,7 +7,6 @@
 #include <wx/wx.h>
 
 #include "Node.h"
-#include "MessageQueue.h"
 
 // middle part of the window containing the dialog between user and chatbot
 class ChatBotPanelDialog : public wxScrolledWindow
@@ -32,7 +31,6 @@ public:
 
     // proprietary functions
     void AddDialogItem(wxString text, bool isFromUser = true);
-    void PrintChatbotResponse(std::string response);
 
     DECLARE_EVENT_TABLE()
 };
@@ -49,6 +47,8 @@ public:
     ChatBotPanelDialogItem(wxPanel *parent, wxString text, bool isFromUser);
 };
 
+// Forward class declaration of the thread class
+class ReceptionThread;
 // frame containing all control elements
 class ChatBotFrame : public wxFrame
 {
@@ -56,25 +56,23 @@ private:
     // control elements
     ChatBotPanelDialog *_panelDialog;
     wxTextCtrl *_userTextCtrl;
+    // chat node
     std::unique_ptr<Node> _chatNode;
-    std::shared_ptr<MessageQueue> _toBeDisplayedMessages;
-    // mutex to protect the dialog
-    std::mutex _mtxDialogItems;
-    std::string toBeDisplayedNext;
-
+    // received message
+    std::string receivedMessage;
+    // reception thread that consumes from message queue
+    ReceptionThread*_receptionThread;
     // events
     void OnEnter(wxCommandEvent &WXUNUSED(event));
-    void OnUpdate(wxDisplayChangedEvent &WXUNUSED(event));
+    void OnDisplayCommand(wxThreadEvent &WXUNUSED(event));
+    void OnClose(wxCloseEvent &WXUNUSED(event));
 
 public:
     // constructor / desctructor
-    ChatBotFrame(const wxString &title);
-    // get node pointer
-    void passNodeObject(std::unique_ptr<Node> &node_ptr);
-    // function to get shared message queue with node object
-    void getMessageQueue();
+    ChatBotFrame(const wxString &title, std::unique_ptr<Node> &node_ptr);
+    ~ChatBotFrame();
 
-    friend void DisplayPollingThreadFunction(ChatBotFrame &frame);
+    friend class ReceptionThread;
 };
 
 // control panel for background image display
@@ -104,6 +102,16 @@ public:
 
 private:
     std::unique_ptr<Node> _chatNode;
+};
+
+class ReceptionThread : public wxThread
+{
+public:
+    ~ReceptionThread();
+    void setFrame(ChatBotFrame *frame);
+protected:
+    virtual ExitCode Entry();
+    ChatBotFrame *frame;
 };
 
 #endif /* CHATGUI_H_ */
