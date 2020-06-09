@@ -277,7 +277,7 @@ ChatBotPanelDialogItem::ChatBotPanelDialogItem(wxPanel *parent, wxString text, b
 // Reception thread functions definition
 wxThread::ExitCode ReceptionThread::Entry()
 {
-    while (!TestDestroy())
+    while (!TestDestroy() && this->frame->_chatNode)
     {
         std::string temp;
         /* use dynamic cast to call the appropriate polling fuction */
@@ -298,14 +298,12 @@ wxThread::ExitCode ReceptionThread::Entry()
 
         if(temp != "")
         {
-            frame->_mtxForString.lock();
-            frame->receivedMessage = temp;
-            frame->_mtxForString.unlock();
+            this->frame->_mtxForString.lock();
+            this->frame->receivedMessage = temp;
+            this->frame->_mtxForString.unlock();
             wxQueueEvent(frame, new wxThreadEvent(wxEVT_COMMAND_DISPLAY_MESSAGE));
         }
     }
-
-    std::cout << "Thread ended" << std::endl;
 
     return (wxThread::ExitCode)0;
 }
@@ -317,7 +315,6 @@ void ReceptionThread::setFrame(ChatBotFrame *frame)
 
 ReceptionThread::~ReceptionThread()
 {
-    std::cout << "Thread destroyed" << std::endl;
     // the thread is being destroyed; make sure not to leave dangling pointers around
-    frame->_receptionThread = nullptr;
+    this->frame->_receptionThread = nullptr;
 }
