@@ -1,9 +1,6 @@
 #ifndef _SERVER_H
 #define _SERVER_H
 
-#include <mutex>
-#include <thread>
-#include <vector>
 /* header files for unix socket dev */
 #include <netinet/in.h>
 #include <arpa/inet.h>

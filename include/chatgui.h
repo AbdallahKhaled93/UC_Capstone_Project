@@ -2,8 +2,6 @@
 #define CHATGUI_H_
 
 #include <memory>
-#include <mutex>
-#include <future>
 #include <wx/wx.h>
 
 #include "Node.h"
@@ -60,8 +58,11 @@ private:
     std::unique_ptr<Node> _chatNode;
     // received message
     std::string receivedMessage;
+    // to protect the received message string
+    std::mutex _mtxForString;
     // reception thread that consumes from message queue
     ReceptionThread*_receptionThread;
+
     // events
     void OnEnter(wxCommandEvent &WXUNUSED(event));
     void OnDisplayCommand(wxThreadEvent &WXUNUSED(event));

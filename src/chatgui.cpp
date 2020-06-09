@@ -2,9 +2,7 @@
 #include <wx/colour.h>
 #include <wx/image.h>
 #include <string>
-#include <thread>
 #include <mutex>
-#include <chrono>
 #include "chatgui.h"
 #include "Server.h"
 #include "Client.h"
@@ -147,12 +145,13 @@ void ChatBotFrame::OnEnter(wxCommandEvent &WXUNUSED(event))
 
 void ChatBotFrame::OnDisplayCommand(wxThreadEvent &WXUNUSED(event))
 {
+    std::lock_guard _gLock(_mtxForString);
     this->_panelDialog->AddDialogItem(this->receivedMessage, false);
 }
 
 void ChatBotFrame::OnClose(wxCloseEvent &WXUNUSED(event))
 {
-    std::cout << this->_receptionThread->Delete() << std::endl;
+    this->_receptionThread->Delete();
     Destroy();
 }
 
@@ -280,6 +279,7 @@ wxThread::ExitCode ReceptionThread::Entry()
 {
     while (!TestDestroy())
     {
+        std::string temp;
         /* use dynamic cast to call the appropriate polling fuction */
         Server*s = dynamic_cast<Server*>(this->frame->_chatNode.get());
 
@@ -287,19 +287,26 @@ wxThread::ExitCode ReceptionThread::Entry()
         if(s == 0)
         {
             Client*c = dynamic_cast<Client*>(this->frame->_chatNode.get());
-            frame->receivedMessage = c->receiveMessage();
+            temp = c->receiveMessage();
         }
         // server node
         else
         {
-            frame->receivedMessage = s->receiveMessage();
+            temp = s->receiveMessage();
         }
 
-        if(frame->receivedMessage != "")
+
+        if(temp != "")
         {
+            frame->_mtxForString.lock();
+            frame->receivedMessage = temp;
+            frame->_mtxForString.unlock();
             wxQueueEvent(frame, new wxThreadEvent(wxEVT_COMMAND_DISPLAY_MESSAGE));
         }
     }
+
+    std::cout << "Thread ended" << std::endl;
+
     return (wxThread::ExitCode)0;
 }
 
@@ -310,5 +317,7 @@ void ReceptionThread::setFrame(ChatBotFrame *frame)
 
 ReceptionThread::~ReceptionThread()
 {
-    this->frame = nullptr;
+    std::cout << "Thread destroyed" << std::endl;
+    // the thread is being destroyed; make sure not to leave dangling pointers around
+    frame->_receptionThread = nullptr;
 }
