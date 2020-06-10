@@ -31,28 +31,35 @@ Multithreaded simple chat app using UNIX sockets based on wxWidgets. Two instanc
 
 ## Rubric Points
 ### Loops, Functions, I/O
--The project demonstrates an understanding of C++ functions and control structures.
--The project reads data from a file and process the data, or the program writes data to a file. This is acheived by writing to socket file descriptors
--The project accepts user input and processes the input. This is acheived by waiting for the user to enter the message to be sent to other node.
+-The project demonstrates an understanding of C++ functions and control structures. **There is a while loop in wxThread::ExitCode ReceptionThread::Entry(), if conditions in Node, Client and Server member functions. Each function in all the files do a specific job**.
+
+-The project reads data from a file and process the data, or the program writes data to a file. This is acheived by writing to socket file descriptors. **Please refer to functions sendMessage and receiveMessage in Client and Server classes**.
+
+-The project accepts user input and processes the input. This is acheived by waiting for the user to enter the message to be sent to other node. **Please check the function OnEnter in chatgui.cpp file**.
 
 ### Object Oriented Programming
--The project uses Object Oriented Programming techniques.
--Classes use appropriate access specifiers for class members.
--Classes abstract implementation details from their interfaces.
--Classes encapsulate behavior.
--Classes follow an appropriate inheritance hierarchy.
--Derived class functions override virtual base class functions. Please refer to send and receive message in both classes Server and Client
+-The project uses Object Oriented Programming techniques. **Please check Node, Server and Client**.
+-Classes use appropriate access specifiers for class members. **Please refer to files : Node.h, Server.h, Client.h and chatgui.h**.
+-Classes abstract implementation details from their interfaces. The constructors and the member functions of the Client and Server classes hides the connection detaits from the chatgui. The chatgui only calls the constructor and functions to establish, send and receive function with any prior interactions with sockets. **Please refer to Client.cpp and Server.cpp. Also refer to bool ChatBotApp::OnInit(), 
+void ChatBotFrame::OnEnter(wxCommandEvent &WXUNUSED(event)) and wxThread::ExitCode ReceptionThread::Entry()**.
+
+-Classes encapsulate behavior. **In ChatBotApp::OnInit(), function calls acceptClientConnections and connectToServer modifies the state
+of the node object without direct access to variables**.
+
+-Classes follow an appropriate inheritance hierarchy. **Classes Server and Client are inherited from Node**.
+
+-Derived class functions override virtual base class functions. **Please refer to send and receive message in both classes Server and Client**.
 
 ### Memory Management
--The project makes use of references in function declarations. the receive message function (return by reference) and
-the ChatBotFrame constructor takes a unique pointer by reference
--The project uses destructors appropriately. Please refer to chatgui.cpp ~ReceptionThread()
--The project uses move semantics to move data, instead of copying it, where possible.
--The project uses smart pointers instead of raw pointers. Please refer to _chatNode unique pointer
+-The project makes use of references in function declarations. **the receive message function in Client and Server (return by reference) and
+the ChatBotFrame constructor takes a unique pointer by reference**.
+-The project uses destructors appropriately. **Please refer to chatgui.cpp ~ReceptionThread() which devalidates a pointer to the thread declared in the ChatBotFrame class**.
+-The project uses move semantics to move data, instead of copying it, where possible. **In ChatBotFrame constuctor, move is used to change _chatNode ownership and give it to ChatBotFrame**.
+-The project uses smart pointers instead of raw pointers. **Please refer to _chatNode unique pointer in both ChatBotApp and ChatBotFrame**.
 
 ### Concurrency
--The project uses multithreading. It uses wx threads.
--A mutex or lock is used in the project.
+-The project uses multithreading. It uses wx threads. **Please refer to Class ReceptionThread in chatgui.cpp and chatgui.h**.
+-A mutex or lock is used in the project. **Please check _mtxForString which is defined in the ChatBotFrame and used in wxThread::ExitCode ReceptionThread::Entry() and ChatBotFrame::OnDisplayCommand**
 
 
 ## Code Structure
